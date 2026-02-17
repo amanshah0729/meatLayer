@@ -1,20 +1,21 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+// POST /api/agents/register — Create a new AI agent account
 export async function POST(request: Request) {
   const body = await request.json();
-  const { owner_name } = body;
+  const { name } = body;
 
-  if (!owner_name) {
+  if (!name) {
     return NextResponse.json(
-      { error: "owner_name is required" },
+      { error: "name is required" },
       { status: 400 }
     );
   }
 
   const { data, error } = await supabase
-    .from("api_keys")
-    .insert({ owner_name })
+    .from("agents")
+    .insert({ name })
     .select()
     .single();
 
@@ -22,10 +23,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({
-    id: data.id,
-    api_key: data.key,
-    owner_name: data.owner_name,
-    created_at: data.created_at,
-  });
+  return NextResponse.json(
+    {
+      message: "Agent created. Save your api_key — it won't be shown again.",
+      agent: data,
+    },
+    { status: 201 }
+  );
 }
