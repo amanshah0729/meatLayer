@@ -6,8 +6,30 @@ import { CreateHumanTaskRequest } from "@/lib/types";
 
 // POST /api/human-task — AI agent submits a task for human assistance
 export async function POST(request: Request) {
-  const body: CreateHumanTaskRequest = await request.json();
-  const { input_payload, importance_level, max_budget } = body;
+  const body: CreateHumanTaskRequest & { api_key?: string } = await request.json();
+  const { api_key, input_payload, importance_level, max_budget } = body;
+
+  // Auth: require api_key
+  if (!api_key) {
+    return NextResponse.json(
+      { error: "api_key is required" },
+      { status: 401 }
+    );
+  }
+
+  // Look up the agent
+  const { data: agent, error: agentError } = await supabase
+    .from("agents")
+    .select("*")
+    .eq("api_key", api_key)
+    .single();
+
+  if (agentError || !agent) {
+    return NextResponse.json(
+      { error: "Invalid api_key" },
+      { status: 401 }
+    );
+  }
 
   if (!input_payload || !importance_level || !max_budget) {
     return NextResponse.json(
@@ -36,7 +58,34 @@ export async function POST(request: Request) {
   // 2. Platform calculates workers, pricing, and trophy threshold
   const routing = calculateRouting(importance_level, max_budget);
 
-  // 3. Insert enriched task into Supabase
+  // 3. Check agent has enough balance
+  const estPrice = routing.estimated_price;
+  if ((agent.balance || 0) < estPrice) {
+    return NextResponse.json(
+      {
+        error: "Insufficient balance",
+        balance: agent.balance || 0,
+        est_price: estPrice,
+      },
+      { status: 402 }
+    );
+  }
+
+  // 4. Deduct balance from agent
+  const newBalance = (agent.balance || 0) - estPrice;
+  const { error: deductError } = await supabase
+    .from("agents")
+    .update({ balance: newBalance })
+    .eq("id", agent.id);
+
+  if (deductError) {
+    return NextResponse.json(
+      { error: "Failed to deduct balance: " + deductError.message },
+      { status: 500 }
+    );
+  }
+
+  // 5. Insert enriched task into Supabase
   const { data, error } = await supabase
     .from("tasks")
     .insert({
@@ -50,13 +99,25 @@ export async function POST(request: Request) {
       worker_instructions: analysis.worker_instructions,
       expected_response_type: analysis.expected_response_type,
       status: "open",
+      agent_id: agent.id,
     })
     .select()
     .single();
 
   if (error) {
+    // Refund the agent if task creation failed
+    await supabase
+      .from("agents")
+      .update({ balance: (agent.balance || 0) })
+      .eq("id", agent.id);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data, { status: 201 });
+  return NextResponse.json(
+    {
+      ...data,
+      agent_balance_remaining: newBalance,
+    },
+    { status: 201 }
+  );
 }
