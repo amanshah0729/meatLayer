@@ -2,18 +2,36 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useAccount, useWriteContract, usePublicClient } from "wagmi";
+import { parseEther, keccak256, toHex } from "viem";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 const imgBackground = "/image%204.png";
 const imgBackgroundOverlay = "/image%204.png";
+
+const VAULT_ADDRESS = "0x3C29D937B1B9D6DaBaC8CE733595F1cBB0E0b3DF" as const;
+const VAULT_ABI = [
+  {
+    name: "deposit",
+    type: "function",
+    stateMutability: "payable",
+    inputs: [{ name: "taskId", type: "bytes32" }],
+    outputs: [],
+  },
+] as const;
 
 interface StepState {
   status: "idle" | "loading" | "done";
 }
 
 export default function PlaygroundPage() {
+  const { address } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
+
   const [agentName, setAgentName] = useState("demo-agent");
   const [apiKey, setApiKey] = useState("");
-  const [depositAmount, setDepositAmount] = useState("100");
+  const [depositAmount, setDepositAmount] = useState("10");
   const [question, setQuestion] = useState(
     "Is this image a real photo or AI-generated?"
   );
@@ -36,6 +54,7 @@ export default function PlaygroundPage() {
   const [copied, setCopied] = useState(false);
   const [agentBalance, setAgentBalance] = useState<number | null>(null);
   const [agentDisplayName, setAgentDisplayName] = useState("");
+  const [lastTxHash, setLastTxHash] = useState("");
 
   const terminalRef = useRef<HTMLDivElement>(null);
 
@@ -104,23 +123,65 @@ export default function PlaygroundPage() {
     if (!apiKey) return;
     updateStep(1, "loading");
     try {
+      const depositId = keccak256(
+        toHex(`${apiKey}-${Date.now()}-${Math.random()}`)
+      );
+
+      setTerminalLines([
+        "$ vault.deposit()",
+        "",
+        `// sending ${depositAmount} MON to vault...`,
+        `// from: ${address ?? "connected wallet"}`,
+        `// vault: ${VAULT_ADDRESS}`,
+        "",
+        "$ _",
+      ]);
+      setTerminalEndpoint("vault.deposit()");
+
+      const txHash = await writeContractAsync({
+        address: VAULT_ADDRESS,
+        abi: VAULT_ABI,
+        functionName: "deposit",
+        args: [depositId],
+        value: parseEther(depositAmount),
+      });
+
+      setLastTxHash(txHash);
+      setTerminalLines((prev) => [
+        ...prev.slice(0, -1),
+        `// tx submitted: ${txHash.slice(0, 18)}...`,
+        "// waiting for confirmation...",
+        "",
+        "$ _",
+      ]);
+
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash: txHash });
+      }
+
       const res = await fetch("/api/agents/deposit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           api_key: apiKey,
           amount: parseFloat(depositAmount),
+          tx_hash: txHash,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setAgentBalance(data.new_balance);
       updateStep(1, "done");
-      typeResponse("POST /api/agents/deposit", data);
+      typeResponse("POST /api/agents/deposit", {
+        ...data,
+        tx_hash: txHash,
+        on_chain: true,
+        vault: VAULT_ADDRESS,
+      });
     } catch (err) {
       updateStep(1, "idle");
-      typeResponse("POST /api/agents/deposit", {
-        error: err instanceof Error ? err.message : "Failed",
+      typeResponse("vault.deposit() FAILED", {
+        error: err instanceof Error ? err.message : "Transaction failed or rejected",
       });
     }
   }
@@ -218,8 +279,8 @@ export default function PlaygroundPage() {
               Agents
             </Link>
           </nav>
-          {agentBalance !== null && (
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
+            {agentBalance !== null && (
               <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-[10px] px-5 py-2.5">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                 <span className="text-[13px] text-white/60">{agentDisplayName}</span>
@@ -228,8 +289,56 @@ export default function PlaygroundPage() {
                   {agentBalance} <span className="text-white/40 text-[12px]">MON</span>
                 </span>
               </div>
-            </div>
-          )}
+            )}
+            <ConnectButton.Custom>
+              {({ account, chain, openConnectModal, openChainModal, openAccountModal, mounted }) => {
+                const connected = mounted && account && chain;
+                return (
+                  <div
+                    {...(!mounted && {
+                      "aria-hidden": true,
+                      style: { opacity: 0, pointerEvents: "none", userSelect: "none" },
+                    })}
+                  >
+                    {!connected ? (
+                      <button
+                        onClick={openConnectModal}
+                        type="button"
+                        className="bg-[#e62f5e] rounded-[10px] px-5 py-2.5 text-[13px] text-white hover:opacity-90 transition-opacity"
+                      >
+                        Connect Wallet
+                      </button>
+                    ) : chain.unsupported ? (
+                      <button
+                        onClick={openChainModal}
+                        type="button"
+                        className="bg-red-500 rounded-[10px] px-5 py-2.5 text-[13px] text-white hover:opacity-90 transition-opacity"
+                      >
+                        Wrong Network
+                      </button>
+                    ) : (
+                      <button
+                        onClick={openAccountModal}
+                        type="button"
+                        className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-[10px] px-4 py-2.5 text-[13px] text-white hover:bg-white/10 transition-all"
+                      >
+                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                        <span className="font-mono">
+                          {account.displayName}
+                        </span>
+                        {account.displayBalance && (
+                          <>
+                            <div className="w-px h-4 bg-white/10" />
+                            <span className="text-white/60">{account.displayBalance}</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                );
+              }}
+            </ConnectButton.Custom>
+          </div>
         </header>
 
         {/* Hero */}
@@ -302,7 +411,7 @@ export default function PlaygroundPage() {
               )}
             </div>
 
-            {/* Step 2: Fund */}
+            {/* Step 2: Fund (On-Chain Deposit) */}
             <div
               className={`rounded-[16px] p-6 transition-all duration-300 ${
                 !apiKey
@@ -317,6 +426,9 @@ export default function PlaygroundPage() {
               <div className="flex items-center gap-3 mb-4">
                 {stepNumber(2, steps[1])}
                 <span className="text-[15px] text-white font-medium">Fund Agent</span>
+                <span className="text-[11px] text-[#e62f5e] font-mono bg-[#e62f5e]/10 px-2 py-0.5 rounded">
+                  on-chain
+                </span>
                 {apiKey && (
                   <span className="ml-auto font-mono text-[11px] text-white/30 truncate max-w-[120px]">
                     {apiKey.slice(0, 8)}...
@@ -344,10 +456,23 @@ export default function PlaygroundPage() {
                   className="bg-[#e62f5e] rounded-[10px] px-5 py-3 text-[14px] text-white hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                   {steps[1].status === "loading"
-                    ? "Depositing..."
+                    ? "Confirm in Wallet..."
                     : `Deposit ${depositAmount} MON`}
                 </button>
               </div>
+              {lastTxHash && steps[1].status === "done" && (
+                <div className="mt-3 flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  <a
+                    href={`https://testnet.monadexplorer.com/tx/${lastTxHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] font-mono text-green-400 hover:text-green-300 underline underline-offset-2"
+                  >
+                    View on Monad Explorer
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* Step 3: Send Task */}

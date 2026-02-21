@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-// POST /api/agents/deposit — Agent deposits funds into their balance
+// POST /api/agents/deposit — Record agent deposit (on-chain tx already completed by client)
 export async function POST(request: Request) {
   const body = await request.json();
-  const { api_key, amount } = body;
+  const { api_key, amount, tx_hash } = body;
 
   if (!api_key) {
     return NextResponse.json({ error: "api_key is required" }, { status: 400 });
@@ -17,7 +17,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // Look up the agent
   const { data: agent, error: agentError } = await supabase
     .from("agents")
     .select("*")
@@ -28,7 +27,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid api_key" }, { status: 401 });
   }
 
-  // Increment balance
   const newBalance = (agent.balance || 0) + amount;
 
   const { error: updateError } = await supabase
@@ -45,5 +43,6 @@ export async function POST(request: Request) {
     previous_balance: agent.balance || 0,
     deposited: amount,
     new_balance: newBalance,
+    ...(tx_hash && { tx_hash }),
   });
 }
