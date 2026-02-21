@@ -95,22 +95,10 @@ export default function DashboardPage() {
               Workers
             </Link>
             <Link
-              href="/playground"
-              className="rounded-[5px] bg-white/10 px-4 py-[10px] text-white/60 hover:text-white hover:bg-white/15 transition-all"
-            >
-              Playground
-            </Link>
-            <Link
               href="/agents"
               className="rounded-[5px] bg-white/10 px-4 py-[10px] text-white/60 hover:text-white hover:bg-white/15 transition-all"
             >
-              My Agents
-            </Link>
-            <Link
-              href="/agents/create"
-              className="rounded-[5px] bg-white/10 px-4 py-[10px] text-white/60 hover:text-white hover:bg-white/15 transition-all"
-            >
-              Create iNFT
+              Agents
             </Link>
           </nav>
           <div className="flex items-center gap-4">
@@ -131,7 +119,7 @@ export default function DashboardPage() {
                       });
                       const data = await res.json();
                       if (!res.ok) throw new Error(data.error);
-                      setCashoutMsg(`Sent ${data.amount} MON! Tx: ${data.tx_hash?.slice(0, 10)}...`);
+                      setCashoutMsg(`Sent ${data.amount} 0G! Tx: ${data.tx_hash?.slice(0, 10)}...`);
                       setUser((prev) => prev ? { ...prev, available_balance: 0 } : prev);
                     } catch (err) {
                       setCashoutMsg(err instanceof Error ? err.message : "Cashout failed");
@@ -145,7 +133,7 @@ export default function DashboardPage() {
                 </button>
                 <div className="flex items-center gap-2 bg-white/10 rounded-[5px] px-4 py-[10px]">
                   <span className="text-[13px] text-white/60">Balance</span>
-                  <span className="text-[14px] text-white font-medium">{user.available_balance || 0} MON</span>
+                  <span className="text-[14px] text-white font-medium">{user.available_balance || 0} 0G</span>
                 </div>
                 <div className="flex items-center gap-2 bg-white/10 rounded-[5px] px-4 py-[10px]">
                   <span className="text-[14px]">🏆</span>

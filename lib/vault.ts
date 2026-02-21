@@ -12,7 +12,8 @@ const VAULT_ABI = [
 ];
 
 function getProvider() {
-  const rpcUrl = process.env.MONAD_RPC_URL || "https://testnet-rpc.monad.xyz";
+  // Vault is deployed on 0G
+  const rpcUrl = process.env.OG_RPC_URL || "https://evmrpc-testnet.0g.ai";
   return new ethers.JsonRpcProvider(rpcUrl);
 }
 

@@ -16,3 +16,12 @@ export function buildDepositAuthMessage(tokenId: number | string): string {
   const timestamp = Math.floor(Date.now() / 1000);
   return `meatlayer:deposit:${tokenId}:${timestamp}`;
 }
+
+/**
+ * Client-side: build the message to sign for demo transfer (DB-only).
+ * Message format: meatlayer:transfer:{token_id}:{to_address}:{timestamp}
+ */
+export function buildTransferAuthMessage(tokenId: number | string, toAddress: string): string {
+  const timestamp = Math.floor(Date.now() / 1000);
+  return `meatlayer:transfer:${tokenId}:${toAddress.toLowerCase()}:${timestamp}`;
+}

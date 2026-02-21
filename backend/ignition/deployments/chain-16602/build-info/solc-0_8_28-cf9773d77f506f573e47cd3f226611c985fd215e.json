@@ -1,0 +1,39 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-cf9773d77f506f573e47cd3f226611c985fd215e",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "userSourceNameMap": {
+    "contracts/HumanTaskVault.sol": "project/contracts/HumanTaskVault.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/HumanTaskVault.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.28;\n\ncontract HumanTaskVault {\n    struct Deposit {\n        address depositor;\n        uint256 amount;\n        bool refunded;\n    }\n\n    address public owner;\n    mapping(bytes32 => Deposit) public deposits;\n    uint256 public totalDeposited;\n\n    event Deposited(bytes32 indexed taskId, address indexed depositor, uint256 amount);\n    event Withdrawn(address indexed worker, uint256 amount);\n    event Refunded(bytes32 indexed taskId, address indexed depositor, uint256 amount);\n\n    modifier onlyOwner() {\n        require(msg.sender == owner, \"Not owner\");\n        _;\n    }\n\n    constructor() {\n        owner = msg.sender;\n    }\n\n    /// @notice Agent deposits funds for a task into the vault.\n    function deposit(bytes32 taskId) external payable {\n        require(msg.value > 0, \"Must send funds\");\n        require(deposits[taskId].amount == 0, \"Deposit already exists\");\n\n        deposits[taskId] = Deposit({\n            depositor: msg.sender,\n            amount: msg.value,\n            refunded: false\n        });\n\n        totalDeposited += msg.value;\n        emit Deposited(taskId, msg.sender, msg.value);\n    }\n\n    /// @notice Backend calls this to pay a worker. Amount owed is tracked off-chain in the DB.\n    function withdraw(address payable worker, uint256 amount) external onlyOwner {\n        require(worker != address(0), \"Invalid address\");\n        require(amount > 0, \"Amount must be > 0\");\n        require(address(this).balance >= amount, \"Insufficient vault balance\");\n\n        (bool sent, ) = worker.call{value: amount}(\"\");\n        require(sent, \"Transfer failed\");\n\n        emit Withdrawn(worker, amount);\n    }\n\n    /// @notice Refund a task deposit back to the original depositor.\n    function refund(bytes32 taskId) external onlyOwner {\n        Deposit storage dep = deposits[taskId];\n        require(dep.amount > 0, \"No deposit found\");\n        require(!dep.refunded, \"Already refunded\");\n\n        dep.refunded = true;\n\n        (bool sent, ) = dep.depositor.call{value: dep.amount}(\"\");\n        require(sent, \"Refund failed\");\n\n        emit Refunded(taskId, dep.depositor, dep.amount);\n    }\n\n    /// @notice View deposit details for a task.\n    function getDeposit(bytes32 taskId) external view returns (\n        address depositor,\n        uint256 amount,\n        bool refunded\n    ) {\n        Deposit memory d = deposits[taskId];\n        return (d.depositor, d.amount, d.refunded);\n    }\n\n    /// @notice Check the total balance held by the vault.\n    function vaultBalance() external view returns (uint256) {\n        return address(this).balance;\n    }\n}\n"
+      }
+    }
+  }
+}

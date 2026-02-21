@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
   if (balance < MIN_CASHOUT) {
     return NextResponse.json(
-      { error: `Minimum cashout is ${MIN_CASHOUT} MON. Current balance: ${balance} MON` },
+      { error: `Minimum cashout is ${MIN_CASHOUT} 0G. Current balance: ${balance} 0G` },
       { status: 400 }
     );
   }

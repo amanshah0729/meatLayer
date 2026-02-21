@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
-import { useAccount, useWriteContract, usePublicClient, useSignMessage } from "wagmi";
+import { useAccount, useWriteContract, usePublicClient } from "wagmi";
 import { useSearchParams } from "next/navigation";
 import { parseEther, keccak256, toHex } from "viem";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { buildHumanTaskAuthMessage, buildDepositAuthMessage } from "@/lib/human-task-auth";
 
 const imgBackground = "/image%204.png";
 const imgBackgroundOverlay = "/image%204.png";
 
-const VAULT_ADDRESS = "0x3C29D937B1B9D6DaBaC8CE733595F1cBB0E0b3DF" as const;
+const VAULT_ADDRESS =
+  (process.env.NEXT_PUBLIC_VAULT_0G_ADDRESS ||
+    "0x62dc022BF3F9aF871e52bDE4A2a6043fdFD4092F") as const;
 const VAULT_ABI = [
   {
     name: "deposit",
@@ -38,7 +39,6 @@ function PlaygroundContent() {
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
-  const { signMessageAsync } = useSignMessage();
 
   const [mode, setMode] = useState<"legacy" | "inft">("legacy");
   const [myAgents, setMyAgents] = useState<AgentRow[]>([]);
@@ -46,12 +46,11 @@ function PlaygroundContent() {
 
   const [agentName, setAgentName] = useState("demo-agent");
   const [apiKey, setApiKey] = useState("");
-  const [depositAmount, setDepositAmount] = useState("10");
+  const [taskLimit, setTaskLimit] = useState("5");
   const [question, setQuestion] = useState(
     "Is this image a real photo or AI-generated?"
   );
   const [importance, setImportance] = useState("25");
-  const [budget, setBudget] = useState("5");
 
   const [steps, setSteps] = useState<[StepState, StepState, StepState]>([
     { status: "idle" },
@@ -70,6 +69,11 @@ function PlaygroundContent() {
   const [agentBalance, setAgentBalance] = useState<number | null>(null);
   const [agentDisplayName, setAgentDisplayName] = useState("");
   const [lastTxHash, setLastTxHash] = useState("");
+  const [agentSpecs, setAgentSpecs] = useState<{
+    specs: { confidence_threshold: number; persona: string; [k: string]: unknown };
+    humans_worked_with: string[];
+  } | null>(null);
+  const [agentSpecsLoading, setAgentSpecsLoading] = useState(false);
 
   const terminalRef = useRef<HTMLDivElement>(null);
 
@@ -115,6 +119,38 @@ function PlaygroundContent() {
       }
     }
   }, [mode, selectedTokenId, myAgents]);
+
+  useEffect(() => {
+    if (mode !== "inft" || selectedTokenId == null) {
+      setAgentSpecs(null);
+      return;
+    }
+    setAgentSpecsLoading(true);
+    setAgentSpecs(null);
+    fetch(`/api/agents/${selectedTokenId}/specs`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.specs != null && Array.isArray(data.humans_worked_with)) {
+          setAgentSpecs({
+            specs: data.specs,
+            humans_worked_with: data.humans_worked_with,
+          });
+        }
+      })
+      .catch(() => setAgentSpecs(null))
+      .finally(() => setAgentSpecsLoading(false));
+  }, [mode, selectedTokenId]);
+
+  useEffect(() => {
+    if (mode === "legacy" && apiKey) {
+      fetch(`/api/agents/balance?api_key=${encodeURIComponent(apiKey)}`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          if (data && typeof data.balance === "number") setAgentBalance(data.balance);
+        })
+        .catch(() => {});
+    }
+  }, [mode, apiKey]);
 
   function updateStep(index: number, status: StepState["status"]) {
     setSteps((prev) => {
@@ -178,7 +214,7 @@ function PlaygroundContent() {
       setTerminalLines([
         "$ vault.deposit()",
         "",
-        `// sending ${depositAmount} MON to vault...`,
+        `// sending ${depositAmount} 0G to vault (0G Testnet)...`,
         `// from: ${address ?? "connected wallet"}`,
         `// vault: ${VAULT_ADDRESS}`,
         "",
@@ -239,20 +275,24 @@ function PlaygroundContent() {
       if (!address || selectedTokenId == null) return;
       updateStep(2, "loading");
       try {
-        const message = buildHumanTaskAuthMessage(selectedTokenId);
-        const signature = await signMessageAsync({ message });
+        const limit = parseFloat(taskLimit);
+        if (agentBalance != null && (Number.isNaN(limit) || limit <= 0 || limit > agentBalance)) {
+          typeResponse("POST /api/human-task", {
+            error: `Task limit must be between 0 and agent balance (${agentBalance} 0G)`,
+          });
+          return;
+        }
+        const body = {
+          token_id: selectedTokenId,
+          wallet_address: address,
+          input_payload: { question, task_type: "Verification", ai_confidence: 42 },
+          importance_level: parseInt(importance),
+          max_budget: Number.isNaN(limit) || limit <= 0 ? (agentBalance ?? 5) : limit,
+        };
         const res = await fetch("/api/human-task", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token_id: selectedTokenId,
-            wallet_address: address,
-            signature,
-            message,
-            input_payload: { question, task_type: "Verification", ai_confidence: 42 },
-            importance_level: parseInt(importance),
-            max_budget: parseFloat(budget),
-          }),
+          body: JSON.stringify(body),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
@@ -270,6 +310,13 @@ function PlaygroundContent() {
       return;
     }
     if (!apiKey) return;
+    const limit = parseFloat(taskLimit);
+    if (agentBalance != null && (Number.isNaN(limit) || limit <= 0 || limit > agentBalance)) {
+      typeResponse("POST /api/human-task", {
+        error: `Task limit must be between 0 and agent balance (${agentBalance} 0G)`,
+      });
+      return;
+    }
     updateStep(2, "loading");
     try {
       const res = await fetch("/api/human-task", {
@@ -283,7 +330,7 @@ function PlaygroundContent() {
             ai_confidence: 42,
           },
           importance_level: parseInt(importance),
-          max_budget: parseFloat(budget),
+          max_budget: Number.isNaN(limit) || limit <= 0 ? (agentBalance ?? 5) : limit,
         }),
       });
       const data = await res.json();
@@ -301,59 +348,25 @@ function PlaygroundContent() {
     }
   }
 
-  async function handleINFTDeposit() {
-    if (!address || selectedTokenId == null) return;
-    updateStep(1, "loading");
-    try {
-      const depositId = keccak256(toHex(`${selectedTokenId}-${Date.now()}-${Math.random()}`));
-      setTerminalLines([
-        "$ vault.deposit()",
-        "",
-        `// sending ${depositAmount} MON to vault...`,
-        `// token_id: ${selectedTokenId}`,
-        "",
-        "$ _",
-      ]);
-      setTerminalEndpoint("vault.deposit()");
-
-      const txHash = await writeContractAsync({
-        address: VAULT_ADDRESS,
-        abi: VAULT_ABI,
-        functionName: "deposit",
-        args: [depositId],
-        value: parseEther(depositAmount),
-      });
-
-      setLastTxHash(txHash);
-      if (publicClient) await publicClient.waitForTransactionReceipt({ hash: txHash });
-
-      const message = buildDepositAuthMessage(selectedTokenId);
-      const signature = await signMessageAsync({ message });
-      const res = await fetch("/api/agents/deposit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token_id: selectedTokenId,
-          wallet_address: address,
-          signature,
-          message,
-          amount: parseFloat(depositAmount),
-          tx_hash: txHash,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      const agent = myAgents.find((a) => a.token_id === selectedTokenId);
-      setAgentBalance(data.new_balance);
-      setAgentDisplayName(agent?.name ?? `Agent #${selectedTokenId}`);
-      updateStep(1, "done");
-      typeResponse("POST /api/agents/deposit (iNFT)", { ...data, tx_hash: txHash });
-    } catch (err) {
-      updateStep(1, "idle");
-      typeResponse("vault.deposit() / deposit API", {
-        error: err instanceof Error ? err.message : "Failed",
-      });
+  function handleSetTaskLimit() {
+    const limit = parseFloat(taskLimit);
+    if (Number.isNaN(limit) || limit <= 0) {
+      typeResponse("Set task limit", { error: "Enter a valid limit (0G) greater than 0" });
+      return;
     }
+    if (agentBalance != null && limit > agentBalance) {
+      typeResponse("Set task limit", {
+        error: `Task limit (${limit} 0G) cannot exceed agent balance (${agentBalance} 0G)`,
+      });
+      return;
+    }
+    updateStep(1, "done");
+    setTerminalLines((prev) => [
+      ...prev,
+      "",
+      `// Task limit set: ${limit} 0G for this task`,
+      "$ _",
+    ]);
   }
 
   function copyApiKey() {
@@ -410,22 +423,10 @@ function PlaygroundContent() {
               Workers
             </Link>
             <Link
-              href="/playground"
+              href="/agents"
               className="rounded-[5px] bg-[#e62f5e] px-4 py-[10px] text-white transition-all"
             >
               Agents
-            </Link>
-            <Link
-              href="/agents"
-              className="rounded-[5px] bg-white/10 px-4 py-[10px] text-white/60 hover:text-white hover:bg-white/15 transition-all"
-            >
-              My Agents
-            </Link>
-            <Link
-              href="/agents/create"
-              className="rounded-[5px] bg-white/10 px-4 py-[10px] text-white/60 hover:text-white hover:bg-white/15 transition-all"
-            >
-              Create iNFT
             </Link>
           </nav>
           <div className="flex items-center gap-3">
@@ -435,7 +436,7 @@ function PlaygroundContent() {
                 <span className="text-[13px] text-white/60">{agentDisplayName}</span>
                 <div className="w-px h-4 bg-white/10" />
                 <span className="text-[14px] text-white font-medium font-mono">
-                  {agentBalance} <span className="text-white/40 text-[12px]">MON</span>
+                  {agentBalance} <span className="text-white/40 text-[12px]">0G</span>
                 </span>
               </div>
             )}
@@ -489,6 +490,21 @@ function PlaygroundContent() {
             </ConnectButton.Custom>
           </div>
         </header>
+
+        {/* Breadcrumb */}
+        <div className="mb-6 flex items-center gap-2 text-[13px] text-white/50">
+          <Link href="/agents" className="text-white/60 hover:text-white transition-colors">
+            Agents
+          </Link>
+          {selectedTokenId && (
+            <>
+              <span>/</span>
+              <span className="text-white/70">Agent #{selectedTokenId}</span>
+            </>
+          )}
+          <span>/</span>
+          <span className="text-white/50">API Playground</span>
+        </div>
 
         {/* Hero */}
         <div className="mb-10">
@@ -558,17 +574,62 @@ function PlaygroundContent() {
                     <option value="">Choose an agent...</option>
                     {myAgents.map((a) => (
                       <option key={a.id} value={a.token_id ?? ""}>
-                        {a.name} #{a.token_id} ({a.balance ?? 0} MON)
+                        {a.name} #{a.token_id} ({a.balance ?? 0} 0G)
                       </option>
                     ))}
                   </select>
                   {myAgents.length === 0 && address && (
                     <p className="text-[12px] text-white/50 mt-2">
-                      No iNFT agents. <Link href="/agents/create" className="text-[#e62f5e] hover:underline">Create one</Link>
+                      No agents yet. <Link href="/agents" className="text-[#e62f5e] hover:underline">Create one</Link>
                     </p>
                   )}
                   {selectedTokenId && (
                     <p className="text-[11px] text-green-400/80 mt-2">Agent #{selectedTokenId} selected</p>
+                  )}
+                  {selectedTokenId && (
+                    <div className="mt-4 rounded-xl bg-white/5 border border-white/10 p-4 space-y-4">
+                      <p className="text-[11px] text-white/40 uppercase tracking-wider">Agent specs</p>
+                      {agentSpecsLoading ? (
+                        <p className="text-[12px] text-white/50">Loading…</p>
+                      ) : agentSpecs ? (
+                        <>
+                          <dl className="space-y-2 text-[13px]">
+                            <div>
+                              <dt className="text-white/50">Confidence threshold</dt>
+                              <dd className="text-white font-mono">
+                                {(Number(agentSpecs.specs.confidence_threshold) * 100).toFixed(0)}%
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-white/50">Persona</dt>
+                              <dd className="text-white">{String(agentSpecs.specs.persona || "—")}</dd>
+                            </div>
+                          </dl>
+                          <div>
+                            <p className="text-[11px] text-white/40 uppercase tracking-wider mb-2">
+                              Humans worked with ({agentSpecs.humans_worked_with.length})
+                            </p>
+                            {agentSpecs.humans_worked_with.length === 0 ? (
+                              <p className="text-[12px] text-white/50">No tasks completed by workers yet.</p>
+                            ) : (
+                              <ul className="space-y-1 max-h-32 overflow-y-auto">
+                                {agentSpecs.humans_worked_with.map((addr) => (
+                                  <li
+                                    key={addr}
+                                    className="font-mono text-[11px] text-white/70 truncate"
+                                    title={addr}
+                                  >
+                                    {addr}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-[12px] text-white/50">No specs or no data.</p>
+                      )}
+                    </div>
                   )}
                 </div>
               ) : (
@@ -612,24 +673,21 @@ function PlaygroundContent() {
               )}
             </div>
 
-            {/* Step 2: Fund (On-Chain Deposit) */}
+            {/* Step 2: Set task limit (max 0G for this task; must be ≤ agent balance) */}
             <div
               className={`rounded-[16px] p-6 transition-all duration-300 ${
                 (mode === "legacy" ? !apiKey : !selectedTokenId)
                   ? "bg-white/[0.02] border border-white/5 opacity-50"
                   : steps[1].status === "idle"
                   ? "bg-white/5 border border-white/10"
-                  : steps[1].status === "loading"
-                  ? "bg-white/5 border border-[#e62f5e]/50 shadow-[0_0_30px_rgba(230,47,94,0.15)]"
-                  : "bg-white/5 border border-green-500/30"
+                  : steps[1].status === "done"
+                  ? "bg-white/5 border border-green-500/30"
+                  : "bg-white/5 border border-white/10"
               }`}
             >
               <div className="flex items-center gap-3 mb-4">
                 {stepNumber(2, steps[1])}
-                <span className="text-[15px] text-white font-medium">Fund Agent</span>
-                <span className="text-[11px] text-[#e62f5e] font-mono bg-[#e62f5e]/10 px-2 py-0.5 rounded">
-                  on-chain
-                </span>
+                <span className="text-[15px] text-white font-medium">Set task limit</span>
                 {mode === "legacy" && apiKey && (
                   <span className="ml-auto font-mono text-[11px] text-white/30 truncate max-w-[120px]">
                     {apiKey.slice(0, 8)}...
@@ -639,43 +697,41 @@ function PlaygroundContent() {
                   <span className="ml-auto font-mono text-[11px] text-white/30">#{selectedTokenId}</span>
                 )}
               </div>
+              <p className="text-[12px] text-white/50 mb-3">
+                Agent balance: {agentBalance != null ? `${agentBalance} 0G` : "—"}
+              </p>
               <div className="flex gap-3">
                 <div className="flex-1 relative">
                   <input
                     type="number"
-                    value={depositAmount}
-                    onChange={(e) => setDepositAmount(e.target.value)}
-                    placeholder="Amount"
+                    value={taskLimit}
+                    onChange={(e) => setTaskLimit(e.target.value)}
+                    placeholder="Max 0G for this task"
                     disabled={mode === "legacy" ? !apiKey : !selectedTokenId}
+                    min={0}
+                    step="any"
                     className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-[14px] text-white placeholder:text-white/30 focus:outline-none focus:border-[#e62f5e]/50 transition-colors disabled:opacity-30"
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[12px] text-white/30">
-                    MON
+                    0G
                   </span>
                 </div>
                 <button
                   type="button"
-                  onClick={mode === "inft" ? handleINFTDeposit : handleDeposit}
-                  disabled={(mode === "legacy" ? !apiKey : !selectedTokenId) || steps[1].status === "loading"}
+                  onClick={handleSetTaskLimit}
+                  disabled={
+                    (mode === "legacy" ? !apiKey : !selectedTokenId) ||
+                    (agentBalance != null && (parseFloat(taskLimit) > agentBalance || parseFloat(taskLimit) <= 0))
+                  }
                   className="bg-[#e62f5e] rounded-[10px] px-5 py-3 text-[14px] text-white hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                 >
-                  {steps[1].status === "loading"
-                    ? "Confirm in Wallet..."
-                    : `Deposit ${depositAmount} MON`}
+                  Set task limit
                 </button>
               </div>
-              {lastTxHash && steps[1].status === "done" && (
-                <div className="mt-3 flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  <a
-                    href={`https://testnet.monadexplorer.com/tx/${lastTxHash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] font-mono text-green-400 hover:text-green-300 underline underline-offset-2"
-                  >
-                    View on Monad Explorer
-                  </a>
-                </div>
+              {agentBalance != null && parseFloat(taskLimit) > agentBalance && (
+                <p className="text-[11px] text-amber-400 mt-2">
+                  Limit cannot exceed agent balance ({agentBalance} 0G).
+                </p>
               )}
             </div>
 
@@ -718,19 +774,6 @@ function PlaygroundContent() {
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] text-white/30">
                       importance
-                    </span>
-                  </div>
-                  <div className="flex-1 relative">
-                    <input
-                      type="number"
-                      value={budget}
-                      onChange={(e) => setBudget(e.target.value)}
-                      placeholder="Budget"
-                      disabled={mode === "legacy" ? !apiKey : !selectedTokenId}
-                      className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-[14px] text-white placeholder:text-white/30 focus:outline-none focus:border-[#e62f5e]/50 transition-colors disabled:opacity-30"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[12px] text-white/30">
-                      MON
                     </span>
                   </div>
                 </div>

@@ -28,5 +28,12 @@ export async function GET(request: Request) {
     (a) => a.owner_address?.toLowerCase() === addrLower
   );
 
+  // Most recently created first
+  filtered.sort((a, b) => {
+    const ta = new Date(a.created_at || 0).getTime();
+    const tb = new Date(b.created_at || 0).getTime();
+    return tb - ta;
+  });
+
   return NextResponse.json(filtered);
 }

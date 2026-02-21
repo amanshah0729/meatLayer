@@ -383,7 +383,7 @@ export default function TaskDetailPage() {
                 Response submitted!
               </span>
               <span className="font-['Inter_Tight:Regular',sans-serif] text-[13px] text-white/80 mt-0.5">
-                +{task.price_per_worker} MON earned
+                +{task.price_per_worker} 0G earned
               </span>
             </div>
           )}
