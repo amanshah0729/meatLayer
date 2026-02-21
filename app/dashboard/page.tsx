@@ -98,7 +98,13 @@ export default function DashboardPage() {
               href="/playground"
               className="rounded-[5px] bg-white/10 px-4 py-[10px] text-white/60 hover:text-white hover:bg-white/15 transition-all"
             >
-              Agents
+              Playground
+            </Link>
+            <Link
+              href="/agents"
+              className="rounded-[5px] bg-white/10 px-4 py-[10px] text-white/60 hover:text-white hover:bg-white/15 transition-all"
+            >
+              My Agents
             </Link>
             <Link
               href="/agents/create"
