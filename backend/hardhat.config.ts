@@ -40,5 +40,11 @@ export default defineConfig({
       url: "https://testnet-rpc.monad.xyz",
       accounts: [configVariable("MONAD_PRIVATE_KEY")],
     },
+    ogTestnet: {
+      type: "http",
+      chainType: "l1",
+      url: "https://evmrpc-testnet.0g.ai",
+      accounts: [configVariable("MONAD_PRIVATE_KEY")],
+    },
   },
 });

@@ -45,3 +45,16 @@ export interface CreateHumanTaskRequest {
   importance_level: number; // 1-100
   max_budget: number;
 }
+
+/** Legacy auth: api_key */
+export interface HumanTaskLegacyAuth {
+  api_key: string;
+}
+
+/** iNFT auth: token_id + wallet + signature */
+export interface HumanTaskINftAuth {
+  token_id: number | string;
+  wallet_address: string;
+  signature: `0x${string}`;
+  message: string; // the message that was signed (for verification)
+}

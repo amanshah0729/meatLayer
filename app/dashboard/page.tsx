@@ -100,6 +100,12 @@ export default function DashboardPage() {
             >
               Agents
             </Link>
+            <Link
+              href="/agents/create"
+              className="rounded-[5px] bg-white/10 px-4 py-[10px] text-white/60 hover:text-white hover:bg-white/15 transition-all"
+            >
+              Create iNFT
+            </Link>
           </nav>
           <div className="flex items-center gap-4">
             {user && (

@@ -2,6 +2,9 @@
   "name": "contracts",
   "version": "1.0.0",
   "type": "module",
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.2"
+  },
   "devDependencies": {
     "@nomicfoundation/hardhat-ignition": "^3.0.7",
     "@nomicfoundation/hardhat-toolbox-viem": "^5.0.2",

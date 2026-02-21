@@ -68,6 +68,26 @@ export async function POST(
       .eq("id", user_id);
   }
 
+  // Record agent-human interaction for iNFT agents
+  if (task.agent_id) {
+    const { data: agent } = await supabase
+      .from("agents")
+      .select("token_id")
+      .eq("id", task.agent_id)
+      .single();
+
+    if (agent?.token_id != null) {
+      await supabase.from("agent_human_interactions").upsert(
+        {
+          token_id: agent.token_id,
+          user_id,
+          first_interaction_at: new Date().toISOString(),
+        },
+        { onConflict: "token_id,user_id", ignoreDuplicates: true }
+      );
+    }
+  }
+
   return NextResponse.json({
     task: updatedTask,
     payout: task.price_per_worker,
