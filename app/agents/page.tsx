@@ -77,6 +77,7 @@ export default function MyAgentsPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [createdTokenId, setCreatedTokenId] = useState<number | null>(null);
+  const [createdMintTxHash, setCreatedMintTxHash] = useState<string | null>(null);
 
   const [fundAmount, setFundAmount] = useState("10");
   const [funding, setFunding] = useState(false);
@@ -141,14 +142,27 @@ export default function MyAgentsPage() {
           confidence_threshold: parseFloat(createConfidence) || 0.72,
         }),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data: { agent?: AgentRow; tokenId?: number; txHash?: string; error?: string };
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(res.ok ? "Response invalid; refresh the page to see your agent." : "Create failed");
+      }
       if (!res.ok) throw new Error(data.error || "Create failed");
       const newAgent = data.agent as AgentRow;
+      if (!newAgent || data.tokenId == null) {
+        throw new Error("Agent may have been created; refresh the page to see it.");
+      }
       setAgents((prev) => [...prev, newAgent]);
       setCreatedTokenId(data.tokenId);
+      setCreatedMintTxHash(data.txHash ?? null);
       setFundError(null);
       setCreatedAgentBalance(null);
       setCreateStep("fund");
+      if (data.txHash) {
+        showToast("iNFT minted on-chain");
+      }
       if (runGovernanceAfterCreate) {
         runGovernanceDemoAfterCreate(data.tokenId);
       }
@@ -162,6 +176,7 @@ export default function MyAgentsPage() {
   function resetCreateFlow() {
     setCreateStep("idle");
     setCreatedTokenId(null);
+    setCreatedMintTxHash(null);
     setCreatedAgentBalance(null);
     setCreateName("");
     setCreatePersona("autonomous execution agent");
@@ -432,6 +447,18 @@ export default function MyAgentsPage() {
             {createStep === "fund" && createdTokenId != null && (
               <div className="bg-white/5 border border-white/10 rounded-[16px] p-6 max-w-xl">
                 <p className="text-green-400/90 text-sm mb-1">iNFT agent #{createdTokenId} created.</p>
+                {createdMintTxHash && (
+                  <p className="text-white/60 text-xs mb-2">
+                    <a
+                      href={`https://chainscan-galileo.0g.ai/tx/${createdMintTxHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-[#e62f5e]"
+                    >
+                      View mint transaction on explorer →
+                    </a>
+                  </p>
+                )}
                 <p className="text-white/50 text-xs mb-4">Fund this iNFT on-chain (0G Testnet). The transaction will be recorded and the balance updated.</p>
                 {!is0G && (
                   <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400/90 text-sm flex items-center justify-between gap-3">
