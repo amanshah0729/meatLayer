@@ -54,3 +54,10 @@ export function getConfidenceColor(confidence: number): string {
   if (confidence < 70) return "text-amber-600";
   return "text-green-600";
 }
+
+export function formatBalance(n: number | null | undefined): string {
+  return Number(n ?? 0).toLocaleString(undefined, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 6,
+  });
+}

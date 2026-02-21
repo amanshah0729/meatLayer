@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { TaskRow } from "@/lib/frontend-types";
-import { getRiskFromImportance } from "@/lib/frontend-types";
+import { getRiskFromImportance, formatBalance } from "@/lib/frontend-types";
 
 const imgBackground = "/image%204.png";
 const imgBackgroundOverlay = "/image%204.png";
@@ -119,7 +119,7 @@ export default function DashboardPage() {
                       });
                       const data = await res.json();
                       if (!res.ok) throw new Error(data.error);
-                      setCashoutMsg(`Sent ${data.amount} 0G! Tx: ${data.tx_hash?.slice(0, 10)}...`);
+                      setCashoutMsg(`Sent ${formatBalance(data.amount)} 0G! Tx: ${data.tx_hash?.slice(0, 10)}...`);
                       setUser((prev) => prev ? { ...prev, available_balance: 0 } : prev);
                     } catch (err) {
                       setCashoutMsg(err instanceof Error ? err.message : "Cashout failed");
@@ -133,7 +133,7 @@ export default function DashboardPage() {
                 </button>
                 <div className="flex items-center gap-2 bg-white/10 rounded-[5px] px-4 py-[10px]">
                   <span className="text-[13px] text-white/60">Balance</span>
-                  <span className="text-[14px] text-white font-medium">{user.available_balance || 0} 0G</span>
+                  <span className="text-[14px] text-white font-medium">{formatBalance(user.available_balance)} 0G</span>
                 </div>
                 <div className="flex items-center gap-2 bg-white/10 rounded-[5px] px-4 py-[10px]">
                   <span className="text-[14px]">🏆</span>

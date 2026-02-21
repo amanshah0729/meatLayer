@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import type { TaskRow } from "@/lib/frontend-types";
-import { getRiskFromImportance, getConfidenceColor } from "@/lib/frontend-types";
+import { getRiskFromImportance, getConfidenceColor, formatBalance } from "@/lib/frontend-types";
 
 const imgBg = "/image%204.png";
 
@@ -383,7 +383,7 @@ export default function TaskDetailPage() {
                 Response submitted!
               </span>
               <span className="font-['Inter_Tight:Regular',sans-serif] text-[13px] text-white/80 mt-0.5">
-                +{task.price_per_worker} 0G earned
+                +{formatBalance(task.price_per_worker)} 0G earned
               </span>
             </div>
           )}

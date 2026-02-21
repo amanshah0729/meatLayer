@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useAccount, useWriteContract, useSwitchChain, useSignMessage } from "wagmi";
+import { useAccount, useWriteContract, useSwitchChain, usePublicClient } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { getAddress, keccak256, toHex } from "viem";
-import { buildTransferAuthMessage } from "@/lib/human-task-auth";
+import { getAddress, keccak256, toHex, parseEther } from "viem";
+import { formatBalance } from "@/lib/frontend-types";
 
 const VAULT_ADDRESS =
   (process.env.NEXT_PUBLIC_VAULT_0G_ADDRESS ||
@@ -59,7 +59,7 @@ export default function MyAgentsPage() {
   const { address, chain } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const { switchChain } = useSwitchChain();
-  const { signMessageAsync } = useSignMessage();
+  const publicClient = usePublicClient();
 
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,18 +158,39 @@ export default function MyAgentsPage() {
 
   async function handleFundAgent(tokenId: number) {
     if (!address) return;
+    const amount = parseFloat(fundAmount) || 0;
+    if (amount <= 0) return;
+
     setFunding(true);
     setFundError(null);
     try {
-      const body = {
-        token_id: tokenId,
-        wallet_address: address,
-        amount: parseFloat(fundAmount) || 0,
-      };
+      if (!is0G) {
+        setFundError("Switch to 0G Testnet to fund this agent on-chain.");
+        return;
+      }
+
+      const depositId = keccak256(toHex(`agent-${tokenId}-${address}-${Date.now()}`));
+      const txHash = await writeContractAsync({
+        address: VAULT_ADDRESS,
+        abi: VAULT_ABI,
+        functionName: "deposit",
+        args: [depositId],
+        value: parseEther(fundAmount),
+      });
+
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash: txHash });
+      }
+
       const res = await fetch("/api/agents/deposit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          token_id: tokenId,
+          wallet_address: address,
+          amount,
+          tx_hash: txHash,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Deposit failed");
@@ -194,8 +215,6 @@ export default function MyAgentsPage() {
     try {
       if (fake0g) {
         const toAddr = getAddress(transferTo.trim());
-        const message = buildTransferAuthMessage(tokenId, toAddr);
-        const signature = await signMessageAsync({ message });
         const res = await fetch("/api/agents/transfer-demo", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -203,8 +222,6 @@ export default function MyAgentsPage() {
             token_id: tokenId,
             to_address: toAddr,
             wallet_address: address,
-            signature,
-            message,
           }),
         });
         const data = await res.json();
@@ -337,7 +354,20 @@ export default function MyAgentsPage() {
 
             {createStep === "fund" && createdTokenId != null && (
               <div className="bg-white/5 border border-white/10 rounded-[16px] p-6 max-w-xl">
-                <p className="text-green-400/90 text-sm mb-4">Agent #{createdTokenId} created. Add funds for this agent.</p>
+                <p className="text-green-400/90 text-sm mb-1">Agent #{createdTokenId} created.</p>
+                <p className="text-white/50 text-xs mb-4">Fund the agent on-chain (0G Testnet). The transaction will be recorded and the balance updated.</p>
+                {!is0G && (
+                  <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400/90 text-sm flex items-center justify-between gap-3">
+                    <span>Switch to 0G Testnet to fund on-chain.</span>
+                    <button
+                      type="button"
+                      onClick={() => switchChain?.({ chainId: 16602 })}
+                      className="shrink-0 px-3 py-1.5 bg-amber-500/20 rounded-lg text-sm hover:bg-amber-500/30"
+                    >
+                      Switch to 0G
+                    </button>
+                  </div>
+                )}
                 <div className="flex flex-wrap items-end gap-3">
                   <div>
                     <label className="block text-xs text-white/50 mb-1">Amount (0G)</label>
@@ -352,10 +382,10 @@ export default function MyAgentsPage() {
                   <button
                     type="button"
                     onClick={() => handleFundAgent(createdTokenId)}
-                    disabled={funding || !fundAmount || parseFloat(fundAmount) <= 0}
+                    disabled={funding || !fundAmount || parseFloat(fundAmount) <= 0 || !is0G}
                     className="rounded-[10px] bg-[#e62f5e] px-5 py-2.5 text-[14px] text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
                   >
-                    {funding ? "Sign to add…" : "Add to budget"}
+                    {funding ? "Confirm in wallet…" : "Fund on-chain"}
                   </button>
                   <button
                     type="button"
@@ -373,7 +403,7 @@ export default function MyAgentsPage() {
               <div className="bg-white/5 border border-white/10 rounded-[16px] p-6 max-w-xl">
                 <p className="text-green-400/90 text-sm mb-3">
                   {createdAgentBalance != null
-                    ? `Agent #{createdTokenId} funded with ${createdAgentBalance} 0G.`
+                    ? `Agent #{createdTokenId} funded with ${formatBalance(createdAgentBalance)} 0G.`
                     : `Agent #{createdTokenId} created. Set task budget in the Playground.`}
                 </p>
                 <div className="flex flex-wrap gap-3">
@@ -448,7 +478,7 @@ export default function MyAgentsPage() {
                       </span>
                     </div>
                     <p className="text-[13px] text-white/50 mt-0.5">
-                      {agent.balance ?? 0} 0G balance
+                      {formatBalance(agent.balance)} 0G balance
                     </p>
                   </div>
                 </div>

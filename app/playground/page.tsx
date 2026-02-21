@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatBalance } from "@/lib/frontend-types";
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useAccount, useWriteContract, usePublicClient } from "wagmi";
 import { useSearchParams } from "next/navigation";
@@ -278,7 +279,7 @@ function PlaygroundContent() {
         const limit = parseFloat(taskLimit);
         if (agentBalance != null && (Number.isNaN(limit) || limit <= 0 || limit > agentBalance)) {
           typeResponse("POST /api/human-task", {
-            error: `Task limit must be between 0 and agent balance (${agentBalance} 0G)`,
+            error: `Task limit must be between 0 and agent balance (${formatBalance(agentBalance)} 0G)`,
           });
           return;
         }
@@ -313,7 +314,7 @@ function PlaygroundContent() {
     const limit = parseFloat(taskLimit);
     if (agentBalance != null && (Number.isNaN(limit) || limit <= 0 || limit > agentBalance)) {
       typeResponse("POST /api/human-task", {
-        error: `Task limit must be between 0 and agent balance (${agentBalance} 0G)`,
+        error: `Task limit must be between 0 and agent balance (${formatBalance(agentBalance)} 0G)`,
       });
       return;
     }
@@ -356,7 +357,7 @@ function PlaygroundContent() {
     }
     if (agentBalance != null && limit > agentBalance) {
       typeResponse("Set task limit", {
-        error: `Task limit (${limit} 0G) cannot exceed agent balance (${agentBalance} 0G)`,
+        error: `Task limit (${limit} 0G) cannot exceed agent balance (${formatBalance(agentBalance)} 0G)`,
       });
       return;
     }
@@ -436,7 +437,7 @@ function PlaygroundContent() {
                 <span className="text-[13px] text-white/60">{agentDisplayName}</span>
                 <div className="w-px h-4 bg-white/10" />
                 <span className="text-[14px] text-white font-medium font-mono">
-                  {agentBalance} <span className="text-white/40 text-[12px]">0G</span>
+                  {formatBalance(agentBalance)} <span className="text-white/40 text-[12px]">0G</span>
                 </span>
               </div>
             )}
@@ -574,7 +575,7 @@ function PlaygroundContent() {
                     <option value="">Choose an agent...</option>
                     {myAgents.map((a) => (
                       <option key={a.id} value={a.token_id ?? ""}>
-                        {a.name} #{a.token_id} ({a.balance ?? 0} 0G)
+                        {a.name} #{a.token_id} ({formatBalance(a.balance)} 0G)
                       </option>
                     ))}
                   </select>
@@ -698,7 +699,7 @@ function PlaygroundContent() {
                 )}
               </div>
               <p className="text-[12px] text-white/50 mb-3">
-                Agent balance: {agentBalance != null ? `${agentBalance} 0G` : "—"}
+                Agent balance: {agentBalance != null ? `${formatBalance(agentBalance)} 0G` : "—"}
               </p>
               <div className="flex gap-3">
                 <div className="flex-1 relative">
@@ -730,7 +731,7 @@ function PlaygroundContent() {
               </div>
               {agentBalance != null && parseFloat(taskLimit) > agentBalance && (
                 <p className="text-[11px] text-amber-400 mt-2">
-                  Limit cannot exceed agent balance ({agentBalance} 0G).
+                  Limit cannot exceed agent balance ({formatBalance(agentBalance)} 0G).
                 </p>
               )}
             </div>
