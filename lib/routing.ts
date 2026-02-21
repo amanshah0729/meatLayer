@@ -7,6 +7,7 @@ interface RoutingResult {
   required_workers: number;
   price_per_worker: number;
   min_trophies: number;
+  trophy_reward: number;
   estimated_price: number;
 }
 
@@ -31,6 +32,10 @@ export function calculateRouting(
   const tierIndex = Math.min(Math.floor(importanceLevel / 10), 9);
   const min_trophies = trophyTiers[tierIndex];
 
+  // Trophy reward — exponential from 1 (low importance) to 200 (high importance)
+  const rewardTiers = [1, 3, 7, 15, 30, 55, 90, 130, 170, 200];
+  const trophy_reward = rewardTiers[tierIndex];
+
   // Split budget evenly across workers
   const price_per_worker = Math.floor((maxBudget / required_workers) * 100) / 100;
   const estimated_price = price_per_worker * required_workers;
@@ -39,6 +44,7 @@ export function calculateRouting(
     required_workers,
     price_per_worker,
     min_trophies,
+    trophy_reward,
     estimated_price,
   };
 }

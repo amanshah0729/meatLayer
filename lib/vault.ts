@@ -12,13 +12,13 @@ const VAULT_ABI = [
 ];
 
 function getProvider() {
-  const rpcUrl = process.env.MONAD_RPC_URL || "https://testnet.monad.xyz";
+  const rpcUrl = process.env.MONAD_RPC_URL || "https://testnet-rpc.monad.xyz";
   return new ethers.JsonRpcProvider(rpcUrl);
 }
 
 function getSigner() {
   const provider = getProvider();
-  const privateKey = process.env.DEPLOYER_PRIVATE_KEY;
+  const privateKey = process.env.DEPLOYER_PRIVATE_KEY?.trim();
   if (!privateKey) throw new Error("DEPLOYER_PRIVATE_KEY not set");
   return new ethers.Wallet(privateKey, provider);
 }

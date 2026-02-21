@@ -23,6 +23,7 @@ export interface TaskRow {
   min_trophies: number;
   price_per_worker: number;
   est_price: number;
+  trophy_reward: number;
   worker_instructions: string;
   expected_response_type: string;
   assigned_to: number | null;

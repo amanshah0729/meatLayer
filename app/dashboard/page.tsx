@@ -5,26 +5,30 @@ import { useEffect, useState } from "react";
 import type { TaskRow } from "@/lib/frontend-types";
 import { getRiskFromImportance } from "@/lib/frontend-types";
 
-const imgBackground =
-  "http://localhost:3845/assets/c16cf0f717e978a05ae09e177469da49ed70bd2e.png";
-const imgBackgroundOverlay =
-  "http://localhost:3845/assets/0224b988f55a8be6ad57362233d3123ac0a7e183.png";
-const imgWaiting =
-  "http://localhost:3845/assets/7f5c3bd1f872a4be1dd8d60fd010eefecc60a79e.png";
+const imgBackground = "/image%204.png";
+const imgBackgroundOverlay = "/image%204.png";
+const imgWaiting = "/image-removebg-preview%201.png";
+
+interface UserInfo {
+  username: string;
+  available_balance: number;
+  trophies: number;
+  tasks_done: number;
+}
 
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTaskTypes, setSelectedTaskTypes] = useState<Set<string>>(
-    new Set()
-  );
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [cashingOut, setCashingOut] = useState(false);
+  const [cashoutMsg, setCashoutMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    const userId = localStorage.getItem("meatlayer_user_id");
+
     async function fetchTasks() {
       try {
-        const userId = localStorage.getItem("meatlayer_user_id");
         let url = "/api/dashboard/tasks?status=open";
         if (userId) {
           url = `/api/tasks/available?user_id=${userId}`;
@@ -33,41 +37,30 @@ export default function DashboardPage() {
         if (!res.ok) throw new Error("Failed to fetch tasks");
         const data: TaskRow[] = await res.json();
         setTasks(data);
-
-        // Derive task types from fetched data and select all by default
-        const types = new Set(
-          data.map((t) => t.input_payload?.task_type || "General").filter(Boolean)
-        );
-        setSelectedTaskTypes(types);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
         setLoading(false);
       }
     }
+
+    async function fetchUser() {
+      if (!userId) return;
+      try {
+        const res = await fetch(`/api/users/${userId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data);
+        }
+      } catch {}
+    }
+
     fetchTasks();
+    fetchUser();
   }, []);
 
-  // Derive all unique task types for the filter dropdown
-  const allTaskTypes = Array.from(
-    new Set(tasks.map((t) => t.input_payload?.task_type || "General").filter(Boolean))
-  );
-
-  const toggleTaskType = (type: string) => {
-    setSelectedTaskTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(type)) next.delete(type);
-      else next.add(type);
-      return next;
-    });
-  };
-
-  const filteredTasks = tasks.filter((task) =>
-    selectedTaskTypes.has(task.input_payload?.task_type || "General")
-  );
-
   return (
-    <main className="min-h-screen w-full bg-[#0d0d0f] text-white relative overflow-hidden">
+    <main className="min-h-screen w-full bg-[#0d0d0f] text-white relative">
       {/* Background - gradient base + cosmic images (from Figma) */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#0d0d0f] via-[#12121a] to-[#0d0d0f]" />
       <div className="absolute inset-0">
@@ -102,77 +95,57 @@ export default function DashboardPage() {
               About
             </Link>
           </nav>
-          <button
-            type="button"
-            className="rounded-[5px] bg-[#e62f5e] px-6 py-[11px] text-[14px] text-white hover:bg-[#d12852] transition-colors"
-          >
-            Profile
-          </button>
-        </header>
-
-        {/* Task type filter - above main container */}
-        {allTaskTypes.length > 0 && (
-          <div className="mb-6 relative">
-            <button
-              type="button"
-              onClick={() => setDropdownOpen((o) => !o)}
-              onBlur={() => setTimeout(() => setDropdownOpen(false), 150)}
-              className="flex items-center justify-between gap-2 rounded-lg bg-[#3C3B43] px-5 py-3 min-w-[220px] text-left text-sm text-white/80 hover:bg-[#45444c] transition-colors"
-            >
-              <span>Task type</span>
-              <svg
-                className={`w-4 h-4 shrink-0 text-white transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
-            {dropdownOpen && (
-              <div className="absolute top-full left-0 mt-1 z-20 rounded-md border border-[#e8e8e8] bg-white shadow-lg py-1 min-w-[220px]">
-                {allTaskTypes.map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => toggleTaskType(type)}
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-black hover:bg-black/[0.04]"
-                  >
-                    <span
-                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                        selectedTaskTypes.has(type)
-                          ? "border-[#e62f5e] bg-[#e62f5e]"
-                          : "border-black/30"
-                      }`}
-                    >
-                      {selectedTaskTypes.has(type) && (
-                        <svg
-                          className="h-2.5 w-2.5 text-white"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={3}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      )}
-                    </span>
-                    {type}
-                  </button>
-                ))}
-              </div>
+          <div className="flex items-center gap-4">
+            {user && (
+              <>
+                <button
+                  type="button"
+                  disabled={cashingOut || (user.available_balance || 0) < 5}
+                  onClick={async () => {
+                    setCashingOut(true);
+                    setCashoutMsg(null);
+                    try {
+                      const userId = localStorage.getItem("meatlayer_user_id");
+                      const res = await fetch("/api/users/cashout", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ user_id: parseInt(userId || "0") }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error);
+                      setCashoutMsg(`Sent ${data.amount} MON! Tx: ${data.tx_hash?.slice(0, 10)}...`);
+                      setUser((prev) => prev ? { ...prev, available_balance: 0 } : prev);
+                    } catch (err) {
+                      setCashoutMsg(err instanceof Error ? err.message : "Cashout failed");
+                    } finally {
+                      setCashingOut(false);
+                    }
+                  }}
+                  className="rounded-[5px] bg-[#e62f5e] px-4 py-[10px] text-[13px] text-white hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {cashingOut ? "Sending..." : "Claim"}
+                </button>
+                <div className="flex items-center gap-2 bg-white/10 rounded-[5px] px-4 py-[10px]">
+                  <span className="text-[13px] text-white/60">Balance</span>
+                  <span className="text-[14px] text-white font-medium">{user.available_balance || 0} MON</span>
+                </div>
+                <div className="flex items-center gap-2 bg-white/10 rounded-[5px] px-4 py-[10px]">
+                  <span className="text-[14px]">🏆</span>
+                  <span className="text-[14px] text-white font-medium">{user.trophies || 0}</span>
+                </div>
+              </>
+            )}
+            <span className="text-[13px] text-white/60">{user?.username || localStorage.getItem("meatlayer_username") || ""}</span>
+            {cashoutMsg && (
+              <span className="text-[12px] text-white/70 max-w-[200px] truncate">{cashoutMsg}</span>
             )}
           </div>
-        )}
+        </header>
+
+        {/* Hero text */}
+        <p className="font-['Inter_Tight:Regular',sans-serif] font-normal leading-[normal] text-[40px] text-white mb-8">
+          Humans are the original processors.
+        </p>
 
         {/* Main container */}
         <section className="rounded-[20px] border border-[#e8e8e8] bg-white text-black overflow-hidden min-h-[600px]">
@@ -201,7 +174,7 @@ export default function DashboardPage() {
           )}
 
           {/* Empty state */}
-          {!loading && !error && filteredTasks.length === 0 && (
+          {!loading && !error && tasks.length === 0 && (
             <div className="flex flex-col items-center justify-center py-24 px-8">
               <div className="mb-6 w-[200px] h-[200px] flex items-center justify-center">
                 <img
@@ -215,9 +188,9 @@ export default function DashboardPage() {
           )}
 
           {/* Task rows */}
-          {!loading && !error && filteredTasks.length > 0 && (
+          {!loading && !error && tasks.length > 0 && (
             <div className="divide-y divide-[#e8e8e8]">
-              {filteredTasks.map((task) => {
+              {tasks.map((task) => {
                 const risk = getRiskFromImportance(task.importance_level);
                 const confidence = task.input_payload?.ai_confidence ?? 0;
                 const taskType = task.input_payload?.task_type || "General";
@@ -266,7 +239,7 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-1.5 text-amber-600">
                         <span>🏆</span>
                         <span className="text-sm font-medium">
-                          +{task.min_trophies}
+                          +{task.trophy_reward ?? task.min_trophies}
                         </span>
                       </div>
                     </div>

@@ -9,6 +9,7 @@ required_workers	int8	how many workers on the task (platform-calculated)
 min_trophies	int8	minimum trophies a worker needs to claim (platform-calculated: importance * 10)
 price_per_worker	float8	pay per worker (platform-calculated: max_budget / required_workers)
 est_price	float8	total estimated cost (platform-calculated)
+trophy_reward	int8 (default 10)	trophies earned on completion (platform-calculated, exponential 1-200)
 worker_instructions	text	AI-generated clear instructions for human workers
 expected_response_type	text	AI-determined: yes_no / text / multiple_choice / numeric / json
 assigned_to	int8 (nullable)	user id of the worker who accepted the task

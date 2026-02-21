@@ -96,6 +96,7 @@ export async function POST(request: Request) {
       min_trophies: routing.min_trophies,
       price_per_worker: routing.price_per_worker,
       est_price: routing.estimated_price,
+      trophy_reward: routing.trophy_reward,
       worker_instructions: analysis.worker_instructions,
       expected_response_type: analysis.expected_response_type,
       status: "open",

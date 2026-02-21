@@ -5,10 +5,8 @@ import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 
-const imgImage3 =
-  "http://localhost:3845/assets/c16cf0f717e978a05ae09e177469da49ed70bd2e.png";
-const imgImage4 =
-  "http://localhost:3845/assets/0224b988f55a8be6ad57362233d3123ac0a7e183.png";
+const imgImage3 = "/image%204.png";
+const imgImage4 = "/image%204.png";
 
 export default function Home() {
   const [showSignup, setShowSignup] = useState(false);

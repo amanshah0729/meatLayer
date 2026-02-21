@@ -55,13 +55,15 @@ export async function POST(
     .eq("id", user_id)
     .single();
 
+  const trophiesEarned = task.trophy_reward || 10;
+
   if (user) {
     await supabase
       .from("users")
       .update({
         available_balance: (user.available_balance || 0) + task.price_per_worker,
         tasks_done: (user.tasks_done || 0) + 1,
-        trophies: (user.trophies || 0) + 10,
+        trophies: (user.trophies || 0) + trophiesEarned,
       })
       .eq("id", user_id);
   }
@@ -69,6 +71,6 @@ export async function POST(
   return NextResponse.json({
     task: updatedTask,
     payout: task.price_per_worker,
-    trophies_earned: 10,
+    trophies_earned: trophiesEarned,
   });
 }
