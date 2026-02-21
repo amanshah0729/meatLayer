@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAccount, useWriteContract, useSwitchChain, usePublicClient } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { getAddress, keccak256, toHex, parseEther } from "viem";
@@ -82,8 +82,19 @@ export default function MyAgentsPage() {
   const [funding, setFunding] = useState(false);
   const [fundError, setFundError] = useState<string | null>(null);
   const [createdAgentBalance, setCreatedAgentBalance] = useState<number | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const is0G = chain?.id === 16602;
+
+  const showToast = useCallback((msg: string) => {
+    setToastMsg(msg);
+  }, []);
+
+  useEffect(() => {
+    if (!toastMsg) return;
+    const t = setTimeout(() => setToastMsg(null), 3000);
+    return () => clearTimeout(t);
+  }, [toastMsg]);
 
   useEffect(() => {
     if (!address) {
@@ -115,7 +126,7 @@ export default function MyAgentsPage() {
           abi: VAULT_ABI,
           functionName: "deposit",
           args: [microTaskId],
-          value: 1n,
+          value: BigInt(1),
         });
       }
 
@@ -214,6 +225,16 @@ export default function MyAgentsPage() {
     setTransferError(null);
     try {
       if (fake0g) {
+        if (is0G) {
+          const microTaskId = keccak256(toHex(`transfer-${tokenId}-${Date.now()}-${Math.random()}`));
+          await writeContractAsync({
+            address: VAULT_ADDRESS,
+            abi: VAULT_ABI,
+            functionName: "deposit",
+            args: [microTaskId],
+            value: BigInt(1),
+          });
+        }
         const toAddr = getAddress(transferTo.trim());
         const res = await fetch("/api/agents/transfer-demo", {
           method: "POST",
@@ -229,6 +250,7 @@ export default function MyAgentsPage() {
         setTransferTokenId(null);
         setTransferTo("");
         setAgents((prev) => prev.filter((a) => a.token_id !== tokenId));
+        showToast("Agent transferred successfully");
       } else {
         await writeContractAsync({
           address: AGENT_INFT_ADDRESS,
@@ -239,6 +261,7 @@ export default function MyAgentsPage() {
         setTransferTokenId(null);
         setTransferTo("");
         setAgents((prev) => prev.filter((a) => a.token_id !== tokenId));
+        showToast("Agent transferred successfully");
       }
     } catch (err) {
       setTransferError(err instanceof Error ? err.message : "Transfer failed");
@@ -275,7 +298,7 @@ export default function MyAgentsPage() {
             Agents
           </h1>
           <p className="text-[16px] text-white/50 mt-3 max-w-[500px]">
-            Create agents, then open the Playground to set task budget and send tasks.
+            Create and manage your <span className="text-white/70">intelligent NFTs (iNFTs)</span>. Each agent is an iNFT on 0G — fund it, then use the Playground to set task budget and send tasks.
           </p>
         </div>
 
@@ -293,13 +316,14 @@ export default function MyAgentsPage() {
                     <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
                 </span>
-                <span>Create agent</span>
+                <span>Create iNFT agent</span>
               </button>
             )}
 
             {createStep === "form" && (
               <div className="bg-white/5 border border-white/10 rounded-[16px] p-6 max-w-xl">
-                <h2 className="text-[15px] font-medium text-white mb-4">New agent</h2>
+                <h2 className="text-[15px] font-medium text-white mb-4">New iNFT agent</h2>
+                <p className="text-[12px] text-white/50 mb-4">Each agent is minted as an intelligent NFT (iNFT) on 0G. You own it via your wallet.</p>
                 <form onSubmit={handleCreateAgent} className="space-y-4">
                   <div>
                     <label className="block text-xs text-white/50 mb-1">Name</label>
@@ -354,8 +378,8 @@ export default function MyAgentsPage() {
 
             {createStep === "fund" && createdTokenId != null && (
               <div className="bg-white/5 border border-white/10 rounded-[16px] p-6 max-w-xl">
-                <p className="text-green-400/90 text-sm mb-1">Agent #{createdTokenId} created.</p>
-                <p className="text-white/50 text-xs mb-4">Fund the agent on-chain (0G Testnet). The transaction will be recorded and the balance updated.</p>
+                <p className="text-green-400/90 text-sm mb-1">iNFT agent #{createdTokenId} created.</p>
+                <p className="text-white/50 text-xs mb-4">Fund this iNFT on-chain (0G Testnet). The transaction will be recorded and the balance updated.</p>
                 {!is0G && (
                   <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400/90 text-sm flex items-center justify-between gap-3">
                     <span>Switch to 0G Testnet to fund on-chain.</span>
@@ -403,8 +427,8 @@ export default function MyAgentsPage() {
               <div className="bg-white/5 border border-white/10 rounded-[16px] p-6 max-w-xl">
                 <p className="text-green-400/90 text-sm mb-3">
                   {createdAgentBalance != null
-                    ? `Agent #{createdTokenId} funded with ${formatBalance(createdAgentBalance)} 0G.`
-                    : `Agent #{createdTokenId} created. Set task budget in the Playground.`}
+                    ? `iNFT agent #{createdTokenId} funded with ${formatBalance(createdAgentBalance)} 0G.`
+                    : `iNFT agent #{createdTokenId} created. Set task budget in the Playground.`}
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <Link
@@ -453,13 +477,13 @@ export default function MyAgentsPage() {
 
         {address && !loading && agents.length === 0 && !createdTokenId && (
           <div className="bg-white/5 border border-white/10 rounded-[16px] p-12 text-center">
-            <p className="text-white/60">Create your first agent using the form above.</p>
+            <p className="text-white/60">Create your first iNFT agent using the form above.</p>
           </div>
         )}
 
         {address && !loading && agents.length > 0 && (
           <div className="space-y-3">
-            <h2 className="text-[13px] font-medium text-white/60 uppercase tracking-wider">Your agents</h2>
+            <h2 className="text-[13px] font-medium text-white/60 uppercase tracking-wider">Your iNFT agents</h2>
             {agents.map((agent) => (
               <div
                 key={agent.id}
@@ -474,7 +498,7 @@ export default function MyAgentsPage() {
                     <div className="flex items-center gap-2">
                       <span className="text-[15px] font-medium text-white">{agent.name}</span>
                       <span className="text-[11px] font-mono text-white/40 bg-white/5 px-2 py-0.5 rounded">
-                        #{agent.token_id}
+                        iNFT #{agent.token_id}
                       </span>
                     </div>
                     <p className="text-[13px] text-white/50 mt-0.5">
@@ -500,10 +524,16 @@ export default function MyAgentsPage() {
           </div>
         )}
 
+        {toastMsg && (
+          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[60] px-6 py-3 rounded-xl bg-green-500/95 text-white text-[14px] font-medium shadow-lg">
+            {toastMsg}
+          </div>
+        )}
+
         {transferTokenId && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
             <div className="bg-[#12121a] border border-white/10 rounded-[16px] p-6 max-w-md w-full">
-              <h3 className="text-lg font-medium text-white mb-4">Transfer Agent #{transferTokenId}</h3>
+              <h3 className="text-lg font-medium text-white mb-4">Transfer iNFT agent #{transferTokenId}</h3>
               <input
                 type="text"
                 value={transferTo}

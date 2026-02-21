@@ -23,6 +23,11 @@ export default function DashboardPage() {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [cashingOut, setCashingOut] = useState(false);
   const [cashoutMsg, setCashoutMsg] = useState<string | null>(null);
+  const [localUsername, setLocalUsername] = useState("");
+
+  useEffect(() => {
+    setLocalUsername(localStorage.getItem("meatlayer_username") || "");
+  }, []);
 
   useEffect(() => {
     const userId = localStorage.getItem("meatlayer_user_id");
@@ -62,7 +67,7 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen w-full bg-[#0d0d0f] text-white relative">
       {/* Background - gradient base + cosmic images (from Figma) */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0d0d0f] via-[#12121a] to-[#0d0d0f]" />
+      <div className="absolute inset-0 bg-linear-to-b from-[#0d0d0f] via-[#12121a] to-[#0d0d0f]" />
       <div className="absolute inset-0">
         <div className="absolute -translate-x-1/2 left-1/2 -top-12 h-[1198px] w-[2138px] opacity-90">
           <img
@@ -77,7 +82,7 @@ export default function DashboardPage() {
             className="absolute inset-0 max-w-none object-cover w-full h-full"
             src={imgBackgroundOverlay}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-black/20" />
+          <div className="absolute inset-0 bg-linear-to-r from-black/20 to-black/20" />
         </div>
       </div>
 
@@ -141,7 +146,7 @@ export default function DashboardPage() {
                 </div>
               </>
             )}
-            <span className="text-[13px] text-white/60">{user?.username || (typeof window !== "undefined" ? localStorage.getItem("meatlayer_username") : "") || ""}</span>
+            <span className="text-[13px] text-white/60">{user?.username || localUsername}</span>
             {cashoutMsg && (
               <span className="text-[12px] text-white/70 max-w-[200px] truncate">{cashoutMsg}</span>
             )}
@@ -205,7 +210,7 @@ export default function DashboardPage() {
                   <Link
                     key={task.id}
                     href={`/task/${task.id}`}
-                    className="block px-8 py-5 hover:bg-black/[0.02] transition-colors"
+                    className="block px-8 py-5 hover:bg-black/2 transition-colors"
                   >
                     <div className="grid grid-cols-[1fr_140px_140px_100px] gap-6 items-start">
                       {/* Task info */}

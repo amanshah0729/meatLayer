@@ -5,7 +5,7 @@ import { ethers } from "ethers";
 
 const MIN_CASHOUT = 5;
 
-// POST /api/users/cashout — Worker cashes out their available balance
+// POST /api/users/cashout — Worker cashes out (minimum 5 0G)
 export async function POST(request: Request) {
   const body = await request.json();
   const { user_id } = body;
@@ -17,7 +17,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // Get the user
   const { data: user, error: userError } = await supabase
     .from("users")
     .select("*")
@@ -32,7 +31,7 @@ export async function POST(request: Request) {
 
   if (balance < MIN_CASHOUT) {
     return NextResponse.json(
-      { error: `Minimum cashout is ${MIN_CASHOUT} 0G. Current balance: ${balance} 0G` },
+      { error: `Minimum withdrawal is ${MIN_CASHOUT} 0G. Current balance: ${balance} 0G` },
       { status: 400 }
     );
   }
