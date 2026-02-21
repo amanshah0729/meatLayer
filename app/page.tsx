@@ -9,6 +9,19 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 const imgImage3 = "/image%204.png";
 const imgImage4 = "/image%204.png";
 
+const WORKERS = [
+  { name: "satoshi_n", photo: "/pexels-photo-6567215.jpeg", trophies: 142 },
+  { name: "elena_v", photo: "/free-photo-of-smiling-man-enjoys-coffee-in-cozy-outdoor-cafe.jpeg", trophies: 89 },
+  { name: "raj_patel", photo: "/depositphotos_69995597-stock-photo-businesswoman-with-puzzle-cube.jpeg", trophies: 214 },
+  { name: "0xMaya", photo: "/istockphoto-2172873491-612x612.jpeg", trophies: 57 },
+  { name: "lukas.eth", photo: "/istockphoto-1466995518-612x612.jpeg", trophies: 331 },
+  { name: "priya_d", photo: "/istockphoto-2063799507-612x612.jpeg", trophies: 176 },
+  { name: "chad_mfr", photo: "/istockphoto-2186383983-612x612.jpeg", trophies: 48 },
+  { name: "anna_wei", photo: "/istockphoto-2006436002-640x640.jpeg", trophies: 263 },
+  { name: "degen_karl", photo: "/gettyimages-1752533660-640x640.jpeg", trophies: 95 },
+  { name: "maria_sol", photo: "/360_F_678098211_RBtjy68o4sN0myCWY3OrM9revJ9JOw41.jpeg", trophies: 128 },
+];
+
 export default function Home() {
   const [showSignup, setShowSignup] = useState(false);
   const { address, isConnected } = useAccount();
@@ -42,13 +55,30 @@ export default function Home() {
     }
   }
 
+  const workerCard = (w: typeof WORKERS[number], i: number) => (
+    <div
+      key={`${w.name}-${i}`}
+      className="flex items-center gap-3 bg-[#f5f5f5] border border-[#e8e8e8] rounded-full pl-1.5 pr-5 py-1.5 shrink-0"
+    >
+      <img
+        src={w.photo}
+        alt={w.name}
+        className="w-10 h-10 rounded-full object-cover"
+      />
+      <div className="flex flex-col">
+        <span className="text-[13px] text-black font-medium leading-tight">{w.name}</span>
+        <span className="text-[11px] text-black/40 leading-tight">🏆 {w.trophies}</span>
+      </div>
+    </div>
+  );
+
   return (
     <div
-      className="bg-white relative w-full h-[1198px] overflow-hidden"
+      className="bg-white relative w-full min-h-screen overflow-hidden"
       data-name="landing"
     >
       {/* Background images */}
-      <div className="-translate-x-1/2 absolute h-[1198px] left-1/2 top-[-48px] w-[2138px]">
+      <div className="-translate-x-1/2 absolute h-full left-1/2 top-[-48px] w-[2138px]">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <img
             alt=""
@@ -57,7 +87,7 @@ export default function Home() {
           />
         </div>
       </div>
-      <div className="absolute h-[1155px] left-[-162px] top-[-17px] w-[2061px]">
+      <div className="absolute h-full left-[-162px] top-[-17px] w-[2061px]">
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
           <img
             alt=""
@@ -68,8 +98,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Hero text */}
-      <p className="absolute font-['Inter_Tight:Regular',sans-serif] font-normal leading-[normal] left-[calc(50%-732px)] text-[40px] text-white top-[111px]">
+      {/* Hero text — left aligned */}
+      <p className="absolute font-['Inter_Tight:Regular',sans-serif] font-normal leading-[normal] left-[136px] text-[40px] text-white top-[111px]">
         Humans are the original processors.
       </p>
 
@@ -91,6 +121,19 @@ export default function Home() {
             Get started
           </span>
         </button>
+
+        {/* Scrolling worker bar */}
+        <div className="mt-16 w-full overflow-hidden">
+          <p className="text-[13px] text-black/30 font-['Inter_Tight:Regular',sans-serif] mb-3 text-center">
+            Top workers earning right now
+          </p>
+          <div className="relative flex overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_5%,black_95%,transparent)]">
+            <div className="flex gap-4 animate-marquee">
+              {WORKERS.map((w, i) => workerCard(w, i))}
+              {WORKERS.map((w, i) => workerCard(w, i + WORKERS.length))}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Header */}
