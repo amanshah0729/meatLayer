@@ -11,9 +11,8 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 const imgBackground = "/image%204.png";
 const imgBackgroundOverlay = "/image%204.png";
 
-const VAULT_ADDRESS =
-  (process.env.NEXT_PUBLIC_VAULT_0G_ADDRESS ||
-    "0x62dc022BF3F9aF871e52bDE4A2a6043fdFD4092F") as const;
+const VAULT_ADDRESS = (process.env.NEXT_PUBLIC_VAULT_0G_ADDRESS ||
+  "0x62dc022BF3F9aF871e52bDE4A2a6043fdFD4092F") as `0x${string}`;
 const VAULT_ABI = [
   {
     name: "deposit",
@@ -48,6 +47,7 @@ function PlaygroundContent() {
   const [agentName, setAgentName] = useState("demo-agent");
   const [apiKey, setApiKey] = useState("");
   const [taskLimit, setTaskLimit] = useState("5");
+  const [depositAmount, setDepositAmount] = useState("10");
   const [question, setQuestion] = useState(
     "Is this image a real photo or AI-generated?"
   );

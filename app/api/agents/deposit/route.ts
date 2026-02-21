@@ -50,6 +50,10 @@ export async function POST(request: Request) {
     );
   }
 
+  if (!agent) {
+    return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+  }
+
   const newBalance = (agent.balance || 0) + amount;
 
   const { error: updateError } = await supabase

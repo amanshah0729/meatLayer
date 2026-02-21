@@ -76,6 +76,10 @@ export async function POST(request: Request) {
 
   const estPrice = routing.estimated_price;
 
+  if (!agent) {
+    return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+  }
+
   // Deduct balance from agent (task is created regardless)
   const newBalance = (agent.balance || 0) - estPrice;
   const { error: deductError } = await supabase

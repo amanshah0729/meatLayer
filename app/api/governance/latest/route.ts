@@ -33,7 +33,7 @@ export async function GET() {
       // OZ Governor has no proposalCount
     }
 
-    if (count != null && count > 0n) {
+    if (count != null && count > BigInt(0)) {
       let latestId = count;
       let proposal: readonly [bigint, string, bigint, bigint, bigint, bigint, bigint, bigint, boolean, boolean];
       try {
@@ -44,7 +44,7 @@ export async function GET() {
           args: [latestId],
         });
       } catch {
-        latestId = count - 1n;
+        latestId = count - BigInt(1);
         proposal = await client.readContract({
           address: GOVERNOR_ADDRESS,
           abi: GOVERNOR_ABI,
@@ -69,7 +69,7 @@ export async function GET() {
 
     // 2) Nouns Builder / OZ-style: get latest proposal from logs (Nouns uses bytes32 proposalId in event data)
     const block = await client.getBlockNumber();
-    const fromBlock = block > 10000n ? block - 10000n : 0n;
+    const fromBlock = block > BigInt(10000) ? block - BigInt(10000) : BigInt(0);
     const logs = await client.getLogs({
       address: GOVERNOR_ADDRESS,
       fromBlock,
@@ -112,9 +112,10 @@ export async function GET() {
         topics: latest.topics,
       });
       if (decoded.eventName === "ProposalCreated" && decoded.args) {
-        description = typeof decoded.args.description === "string" ? decoded.args.description : "";
-        proposer = typeof decoded.args.proposal?.proposer === "string" ? decoded.args.proposal.proposer : "";
-        const p = decoded.args.proposal as { forVotes?: number; againstVotes?: number; abstainVotes?: number } | undefined;
+        const args = decoded.args as { description?: string; proposal?: { proposer?: string; forVotes?: number; againstVotes?: number; abstainVotes?: number } };
+        description = typeof args.description === "string" ? args.description : "";
+        proposer = typeof args.proposal?.proposer === "string" ? args.proposal.proposer : "";
+        const p = args.proposal;
         if (p) {
           forVotes = String(p.forVotes ?? 0);
           againstVotes = String(p.againstVotes ?? 0);

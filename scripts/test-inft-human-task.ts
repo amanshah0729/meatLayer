@@ -11,7 +11,7 @@
  *   DEPLOYER_PRIVATE_KEY=0x... npx tsx scripts/test-inft-human-task.ts 1
  */
 
-import { privateKeyToAccount, signMessage } from "viem/accounts";
+import { privateKeyToAccount } from "viem/accounts";
 
 const tokenId = process.argv[2] || "1";
 const privateKey = process.env.DEPLOYER_PRIVATE_KEY || process.env.MONAD_PRIVATE_KEY;
@@ -25,14 +25,16 @@ if (!privateKey) {
 const message = `meatlayer:human-task:${tokenId}:${Math.floor(Date.now() / 1000)}`;
 
 async function main() {
+  const pk = process.env.DEPLOYER_PRIVATE_KEY || process.env.MONAD_PRIVATE_KEY;
+  if (!pk) {
+    console.error("Set DEPLOYER_PRIVATE_KEY or MONAD_PRIVATE_KEY in env");
+    process.exit(1);
+  }
   const account = privateKeyToAccount(
-    (privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`) as `0x${string}`
+    (pk.startsWith("0x") ? pk : `0x${pk}`) as `0x${string}`
   );
 
-  const signature = await signMessage({
-    message,
-    account,
-  });
+  const signature = await account.signMessage({ message });
 
   const body = {
     token_id: parseInt(tokenId, 10),
