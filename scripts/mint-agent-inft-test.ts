@@ -9,7 +9,7 @@
  *      OG_RPC_URL (default: https://evmrpc-testnet.0g.ai)
  */
 
-const CONTRACT_ADDRESS = "0x3C29D937B1B9D6DaBaC8CE733595F1cBB0E0b3DF" as const;
+const AGENT_INFT_CONTRACT = "0x3C29D937B1B9D6DaBaC8CE733595F1cBB0E0b3DF" as const;
 const RPC_URL = process.env.OG_RPC_URL || process.env.NEXT_PUBLIC_OG_RPC_URL || "https://evmrpc-testnet.0g.ai";
 
 const AGENT_INFT_ABI = [
@@ -61,13 +61,13 @@ async function main() {
   const blobHash = keccak256(toHex("test-blob"));
 
   console.log("Minting test Agent iNFT");
-  console.log("Contract:", CONTRACT_ADDRESS);
+  console.log("Contract:", AGENT_INFT_CONTRACT);
   console.log("Recipient:", recipient);
   console.log("Storage pointer:", storagePointer);
   console.log("");
 
   const hash = await walletClient.writeContract({
-    address: CONTRACT_ADDRESS,
+    address: AGENT_INFT_CONTRACT,
     abi: AGENT_INFT_ABI,
     functionName: "mintAgent",
     args: [recipient as `0x${string}`, storagePointer, blobHash],
@@ -89,7 +89,7 @@ async function main() {
   console.log("");
   console.log("Verify on 0G testnet explorer:");
   console.log("  Tx:    https://chainscan-galileo.0g.ai/tx/" + hash);
-  console.log("  NFT:   https://chainscan-galileo.0g.ai/address/" + CONTRACT_ADDRESS);
+  console.log("  NFT:   https://chainscan-galileo.0g.ai/address/" + AGENT_INFT_CONTRACT);
   console.log("");
   console.log("Run npx tsx scripts/ping-agent-inft.ts to verify from CLI.");
 }
