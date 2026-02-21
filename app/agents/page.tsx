@@ -83,6 +83,7 @@ export default function MyAgentsPage() {
   const [fundError, setFundError] = useState<string | null>(null);
   const [createdAgentBalance, setCreatedAgentBalance] = useState<number | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [runGovernanceAfterCreate, setRunGovernanceAfterCreate] = useState(false);
 
   const is0G = chain?.id === 16602;
 
@@ -148,6 +149,9 @@ export default function MyAgentsPage() {
       setFundError(null);
       setCreatedAgentBalance(null);
       setCreateStep("fund");
+      if (runGovernanceAfterCreate) {
+        runGovernanceDemoAfterCreate(data.tokenId);
+      }
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "Create failed");
     } finally {
@@ -165,6 +169,7 @@ export default function MyAgentsPage() {
     setFundAmount("10");
     setCreateError(null);
     setFundError(null);
+    setRunGovernanceAfterCreate(false);
   }
 
   async function handleFundAgent(tokenId: number) {
@@ -216,6 +221,45 @@ export default function MyAgentsPage() {
       setFundError(err instanceof Error ? err.message : "Deposit failed");
     } finally {
       setFunding(false);
+    }
+  }
+
+  /** Run after create when runGovernanceAfterCreate is on: fetch proposal, toast, then call human-task. */
+  async function runGovernanceDemoAfterCreate(tokenId: number) {
+    if (!address) return;
+    try {
+      const res = await fetch("/api/governance/latest");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load proposal");
+      if (data.proposalId == null) {
+        showToast(data.message || "No proposals yet");
+        return;
+      }
+      const title = data.title || "Proposal";
+      showToast(`Finding proposal: ${title}…`);
+      const runRes = await fetch("/api/governance/run-demo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token_id: tokenId, wallet_address: address }),
+      });
+      const runData = await runRes.json();
+      if (!runRes.ok) {
+        if (runRes.status === 402) {
+          showToast("Fund this agent to send task to MeatLayer");
+        } else {
+          showToast(runData.error || "Run demo failed");
+        }
+        return;
+      }
+      showToast("Calling human task — sent to Workers dashboard");
+      const newBalance = runData.task?.agent_balance_remaining;
+      if (typeof newBalance === "number") {
+        setAgents((prev) =>
+          prev.map((a) => (a.token_id === tokenId ? { ...a, balance: newBalance } : a))
+        );
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Run demo failed");
     }
   }
 
@@ -355,6 +399,15 @@ export default function MyAgentsPage() {
                       className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-[14px] text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-[#e62f5e] max-w-[120px]"
                     />
                   </div>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={runGovernanceAfterCreate}
+                      onChange={(e) => setRunGovernanceAfterCreate(e.target.checked)}
+                      className="w-4 h-4 rounded border-white/30 bg-white/5 text-[#e62f5e] focus:ring-[#e62f5e]"
+                    />
+                    <span className="text-[14px] text-white/80">Run governance demo after create</span>
+                  </label>
                   <div className="flex gap-3">
                     <button
                       type="button"

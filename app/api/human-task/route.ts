@@ -74,20 +74,9 @@ export async function POST(request: Request) {
   // 2. Platform calculates workers, pricing, and trophy threshold
   const routing = calculateRouting(importance_level, max_budget);
 
-  // 3. Check agent has enough balance
   const estPrice = routing.estimated_price;
-  if ((agent.balance || 0) < estPrice) {
-    return NextResponse.json(
-      {
-        error: "Insufficient balance",
-        balance: agent.balance || 0,
-        est_price: estPrice,
-      },
-      { status: 402 }
-    );
-  }
 
-  // 4. Deduct balance from agent
+  // Deduct balance from agent (task is created regardless)
   const newBalance = (agent.balance || 0) - estPrice;
   const { error: deductError } = await supabase
     .from("agents")

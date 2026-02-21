@@ -37,10 +37,11 @@ const ogTestnet = defineChain({
   testnet: true,
 });
 
+// Base Sepolia (84532) is only used server-side in app/api/governance/latest — not in wallet
 const config = getDefaultConfig({
   appName: "MeatLayer",
   projectId: "meatlayer-hackathon",
-  chains: [monadTestnet, ogTestnet],
+  chains: [ogTestnet, monadTestnet],
   ssr: true,
 });
 
@@ -50,7 +51,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>{children}</RainbowKitProvider>
+        <RainbowKitProvider initialChain={ogTestnet}>{children}</RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
