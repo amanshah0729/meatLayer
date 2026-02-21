@@ -24,14 +24,19 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchTasks() {
       try {
-        const res = await fetch("/api/dashboard/tasks?status=open");
+        const userId = localStorage.getItem("meatlayer_user_id");
+        let url = "/api/dashboard/tasks?status=open";
+        if (userId) {
+          url = `/api/tasks/available?user_id=${userId}`;
+        }
+        const res = await fetch(url);
         if (!res.ok) throw new Error("Failed to fetch tasks");
         const data: TaskRow[] = await res.json();
         setTasks(data);
 
         // Derive task types from fetched data and select all by default
         const types = new Set(
-          data.map((t) => t.input_payload?.task_type).filter(Boolean)
+          data.map((t) => t.input_payload?.task_type || "General").filter(Boolean)
         );
         setSelectedTaskTypes(types);
       } catch (err) {
@@ -45,7 +50,7 @@ export default function DashboardPage() {
 
   // Derive all unique task types for the filter dropdown
   const allTaskTypes = Array.from(
-    new Set(tasks.map((t) => t.input_payload?.task_type).filter(Boolean))
+    new Set(tasks.map((t) => t.input_payload?.task_type || "General").filter(Boolean))
   );
 
   const toggleTaskType = (type: string) => {
@@ -58,7 +63,7 @@ export default function DashboardPage() {
   };
 
   const filteredTasks = tasks.filter((task) =>
-    selectedTaskTypes.has(task.input_payload?.task_type)
+    selectedTaskTypes.has(task.input_payload?.task_type || "General")
   );
 
   return (
@@ -215,7 +220,7 @@ export default function DashboardPage() {
               {filteredTasks.map((task) => {
                 const risk = getRiskFromImportance(task.importance_level);
                 const confidence = task.input_payload?.ai_confidence ?? 0;
-                const taskType = task.input_payload?.task_type ?? "Unknown";
+                const taskType = task.input_payload?.task_type || "General";
 
                 return (
                   <Link

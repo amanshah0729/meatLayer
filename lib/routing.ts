@@ -24,8 +24,12 @@ export function calculateRouting(
     required_workers = 5;
   }
 
-  // Trophy threshold: importance * 10 (e.g. importance 75 = need 750 trophies)
-  const min_trophies = importanceLevel * 10;
+  // Trophy tiers — exponential scaling
+  // 0-10: 0, 10-20: 10, 20-30: 25, 30-40: 60, 40-50: 150,
+  // 50-60: 350, 60-70: 800, 70-80: 1800, 80-90: 4000, 90-100: 10000
+  const trophyTiers = [0, 10, 25, 60, 150, 350, 800, 1800, 4000, 10000];
+  const tierIndex = Math.min(Math.floor(importanceLevel / 10), 9);
+  const min_trophies = trophyTiers[tierIndex];
 
   // Split budget evenly across workers
   const price_per_worker = Math.floor((maxBudget / required_workers) * 100) / 100;
