@@ -84,15 +84,21 @@ export default function DashboardPage() {
       <div className="relative z-10 pl-[130px] pr-[130px] pt-[42px] pb-8">
         {/* Header - matches main page */}
         <header className="flex items-center justify-between mb-12">
-          <nav className="flex items-center gap-[45px] font-normal text-[12px] text-white">
-            <Link href="/" className="hover:text-white/90">
+          <nav className="flex items-center gap-4 font-normal text-[13px]">
+            <Link href="/" className="text-white hover:text-white/90 mr-6">
               MeatLayer
             </Link>
-            <Link href="#" className="hover:text-white/90">
-              How it works
+            <Link
+              href="/dashboard"
+              className="rounded-[5px] bg-[#e62f5e] px-4 py-[10px] text-white transition-all"
+            >
+              Workers
             </Link>
-            <Link href="#" className="hover:text-white/90">
-              About
+            <Link
+              href="/playground"
+              className="rounded-[5px] bg-white/10 px-4 py-[10px] text-white/60 hover:text-white hover:bg-white/15 transition-all"
+            >
+              Agents
             </Link>
           </nav>
           <div className="flex items-center gap-4">
@@ -135,7 +141,7 @@ export default function DashboardPage() {
                 </div>
               </>
             )}
-            <span className="text-[13px] text-white/60">{user?.username || localStorage.getItem("meatlayer_username") || ""}</span>
+            <span className="text-[13px] text-white/60">{user?.username || (typeof window !== "undefined" ? localStorage.getItem("meatlayer_username") : "") || ""}</span>
             {cashoutMsg && (
               <span className="text-[12px] text-white/70 max-w-[200px] truncate">{cashoutMsg}</span>
             )}

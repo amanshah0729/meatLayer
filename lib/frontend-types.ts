@@ -1,9 +1,11 @@
 export interface TaskPayload {
-  task_type: string;
-  ai_confidence: number;
-  ai_action: string;
-  user_input: string;
-  ai_reasoning: string;
+  task_type?: string;
+  ai_confidence?: number;
+  ai_action?: string;
+  user_input?: string;
+  ai_reasoning?: string;
+  question?: string;
+  image_url?: string;
   context?: { type: "text" | "image"; content: string };
   options?: Array<{
     id: string;
@@ -11,6 +13,7 @@ export interface TaskPayload {
     image_url?: string;
     metadata?: Record<string, string>;
   }>;
+  [key: string]: unknown;
 }
 
 export interface TaskRow {

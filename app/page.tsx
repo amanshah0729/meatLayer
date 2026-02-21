@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 
@@ -95,10 +96,20 @@ export default function Home() {
       {/* Header */}
       <div className="absolute left-[130px] right-[130px] top-[42px]">
         <div className="flex items-center justify-between w-full">
-          <div className="flex gap-[45px] items-center font-['Inter_Tight:Regular',sans-serif] font-normal text-[12px] text-white">
-            <p>MeatLayer</p>
-            <p>How it works</p>
-            <p>About</p>
+          <div className="flex gap-4 items-center font-['Inter_Tight:Regular',sans-serif] font-normal text-[13px] text-white">
+            <p className="mr-6">MeatLayer</p>
+            <Link
+              href="/dashboard"
+              className="rounded-[5px] bg-white/10 px-4 py-[10px] text-white/60 hover:text-white hover:bg-white/15 transition-all"
+            >
+              Workers
+            </Link>
+            <Link
+              href="/playground"
+              className="rounded-[5px] bg-white/10 px-4 py-[10px] text-white/60 hover:text-white hover:bg-white/15 transition-all"
+            >
+              Agents
+            </Link>
           </div>
           <button
             type="button"
